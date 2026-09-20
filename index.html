@@ -97,8 +97,8 @@
         .info-box { background: var(--input-bg); padding: 10px; border-radius: 8px; margin-bottom: 10px; color: var(--text-main); border: 1px solid var(--border); }
         .visited-badge { font-size: 0.65rem; background: var(--visited-badge-bg); color: var(--visited-badge-color); padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
 
-        /* نافذة التنبيه المخصصة الخالية من عناوين المتصفح */
-        #custom-alert-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
+        /* نوافذ التنبيه والتأكيد المخصصة الخالية من عناوين المتصفح */
+        #custom-alert-modal, #custom-confirm-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
         .custom-modal-content { background: var(--surface); color: var(--text-main); max-width: 360px; width: 100%; border-radius: var(--radius); padding: 22px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); animation: popIn 0.2s ease-out; }
         @keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
@@ -208,7 +208,7 @@
         </div>
     </div>
 
-    <!-- نافذة تنبيه مخصصة تمبديل alert -->
+    <!-- نافذة تنبيه مخصصة -->
     <div id="custom-alert-modal">
         <div class="custom-modal-content">
             <div style="font-size: 2.2rem; color: var(--primary); margin-bottom: 10px;">
@@ -219,10 +219,24 @@
         </div>
     </div>
 
+    <!-- نافذة تأكيد مخصصة لتنفيذ استعادة النسخة وبقية التنبيهات -->
+    <div id="custom-confirm-modal">
+        <div class="custom-modal-content">
+            <div style="font-size: 2.2rem; color: #f59e0b; margin-bottom: 10px;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <p id="custom-confirm-msg" style="font-size: 0.95rem; font-weight: 700; margin: 0 0 16px 0; color: var(--text-main); line-height: 1.5;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" style="margin: 0; flex: 1;" id="custom-confirm-yes-btn">حسناً</button>
+                <button class="btn btn-secondary" style="margin: 0; flex: 1;" id="custom-confirm-no-btn">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
     <!-- نافذة منبثقة لعرض سجل الزبون -->
     <div id="client-history-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:2000; padding:20px; overflow-y:auto;">
         <div style="background:var(--surface); color:var(--text-main); max-width:500px; margin:40px auto; border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); border:1px solid var(--border);">
-            <div style="display:flex; justify-style:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px;">
                 <h3 style="margin:0; font-size:1.05rem;"><i class="fa-solid fa-address-book"></i> سجل معاملات الزبون</h3>
                 <button class="btn btn-danger" style="width:auto; padding:4px 10px; margin:0; font-size:0.75rem;" onclick="closeClientHistory()"><i class="fa-solid fa-xmark"></i> إغلاق</button>
             </div>
@@ -271,7 +285,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// نافذة تنبيه مخصصة لمنع ظهور عنوان رابط الصفحة في المتصفح أو التطبيق
+// نافذة تنبيه مخصصة
 let customAlertCallback = null;
 function showAlert(msg, callback) {
     customAlertCallback = callback || null;
@@ -291,7 +305,26 @@ function closeCustomAlert() {
     }
 }
 
-// استبدال window.alert لتطبيق التنبيه المخصص تلقائياً
+// نافذة تأكيد مخصصة لمنع ظهور رابط الموقع
+function showConfirm(msg, onConfirm, onCancel) {
+    const msgEl = document.getElementById('custom-confirm-msg');
+    if (msgEl) msgEl.innerText = msg;
+    const modal = document.getElementById('custom-confirm-modal');
+    if (modal) modal.style.display = 'flex';
+
+    const yesBtn = document.getElementById('custom-confirm-yes-btn');
+    const noBtn = document.getElementById('custom-confirm-no-btn');
+
+    yesBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (typeof onConfirm === 'function') onConfirm();
+    };
+    noBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (typeof onCancel === 'function') onCancel();
+    };
+}
+
 window.alert = function(msg) {
     showAlert(msg);
 };
@@ -371,7 +404,7 @@ function restockProduct(id,current){const n=parseInt(prompt('أدخل الكمي
 function openEditProduct(id){const p=db.products.find(x=>x.id===id);if(!p)return;document.getElementById('edit-prod-id').value=p.id;document.getElementById('edit-prod-name').value=p.name;document.getElementById('edit-prod-price').value=p.price;document.getElementById('edit-prod-stock').value=p.stock;document.getElementById('edit-product-modal').style.display='block';}
 function closeEditProductModal(){document.getElementById('edit-product-modal').style.display='none';}
 function saveProductUpdate(){const id=Number(document.getElementById('edit-prod-id').value),name=document.getElementById('edit-prod-name').value.trim(),price=parseFloat(document.getElementById('edit-prod-price').value),stock=parseInt(document.getElementById('edit-prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return showAlert('يرجى إدخال كافة البيانات بشكل صحيح');const p=db.products.find(x=>x.id===id);if(!p)return;p.name=name;p.price=price;p.stock=stock;saveDB();showAlert('تم تعديل المنتج بنجاح');closeEditProductModal();loadData();}
-function deleteProduct(id){if(!confirm('هل أنت متأكد من حذف هذا المنتج نهائياً من المخزن؟'))return;db.products=db.products.filter(p=>p.id!==id);saveDB();showAlert('تم حذف المنتج بنجاح');loadData();}
+function deleteProduct(id){showConfirm('هل أنت متأكد من حذف هذا المنتج نهائياً من المخزن؟', ()=>{db.products=db.products.filter(p=>p.id!==id);saveDB();showAlert('تم حذف المنتج بنجاح');loadData();});}
 
 function openClientOrder(id){
     const client=allClients.find(c=>c.id===id);
@@ -433,9 +466,32 @@ function submitOrder(cid){
 function submitPayment(cid){const pay=parseFloat(document.getElementById('pay-amt').value)||0;if(pay<=0)return showAlert('يرجى إدخال مبلغ صحيح');const c=db.clients.find(x=>x.id===cid);if(!c)return;c.debt=Number(c.debt||0)-pay;saveDB();showAlert('تم تسديد الدين بنجاح');closeClientOrder();loadData();}
 function saveClient(){const name=document.getElementById('client-name').value.trim(),phone=document.getElementById('client-phone').value.trim(),lat=parseFloat(document.getElementById('lat').value),lng=parseFloat(document.getElementById('lng').value);if(!name||isNaN(lat)||isNaN(lng))return showAlert('يرجى إدخال اسم الزبون وتحديد موقعه على الخريطة');db.clients.push({id:nextId('clients'),name,phone,lat,lng,debt:0,visited:0});saveDB();showAlert('تم حفظ الزبون بنجاح');['client-name','client-phone','lat','lng'].forEach(id=>document.getElementById(id).value='');if(selectedMarker){clientMap.removeLayer(selectedMarker);selectedMarker=null;}loadData();switchTab('tab-route',document.querySelectorAll('.nav-item')[0]);}
 function saveProduct(){const name=document.getElementById('prod-name').value.trim(),price=parseFloat(document.getElementById('prod-price').value),stock=parseInt(document.getElementById('prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return showAlert('يرجى ملء جميع حقول المنتج بشكل صحيح');db.products.push({id:nextId('products'),name,price,stock});saveDB();showAlert('تم حفظ المنتج بنجاح');['prod-name','prod-price','prod-stock'].forEach(id=>document.getElementById(id).value='');loadData();}
-function resetDailyVisits(){if(!confirm('هل تريد تصفير الزيارات اليومية؟'))return;db.clients.forEach(c=>c.visited=0);db.settings.last_reset_date=today();saveDB();loadData();showAlert('تمت إعادة ضبط الزيارات اليومية بنجاح');}
+function resetDailyVisits(){showConfirm('هل تريد تصفير الزيارات اليومية؟', ()=>{db.clients.forEach(c=>c.visited=0);db.settings.last_reset_date=today();saveDB();loadData();showAlert('تمت إعادة ضبط الزيارات اليومية بنجاح');});}
 function exportBackup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sales_backup_'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-function importBackup(event){const file=event.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.clients||!d.products||!d.orders||!d.orderItems)throw new Error('ملف غير صالح');if(!confirm('سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متابعة؟'))return;db=d;saveDB();loadData();showAlert('تمت استعادة النسخة الاحتياطية بنجاح');}catch(e){showAlert('تعذر استعادة النسخة: الملف غير صالح');}};r.readAsText(file);}
+
+function importBackup(event){
+    const file=event.target.files[0];
+    if(!file)return;
+    const r=new FileReader();
+    r.onload=()=>{
+        try{
+            const d=JSON.parse(r.result);
+            if(!d.clients||!d.products||!d.orders||!d.orderItems)throw new Error('ملف غير صالح');
+            
+            showConfirm('سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متابعة؟', () => {
+                db=d;
+                saveDB();
+                loadData();
+                showAlert('تمت استعادة النسخة الاحتياطية بنجاح');
+            });
+        }catch(e){
+            showAlert('تعذر استعادة النسخة: الملف غير صالح');
+        }
+    };
+    r.readAsText(file);
+    event.target.value = '';
+}
+
 window.addEventListener('load',()=>{loadData();initGPS();});
 </script>
 </body>
