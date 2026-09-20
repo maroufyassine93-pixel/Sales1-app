@@ -1,0 +1,9 @@
+{
+  "name": "نظام المبيعات",
+  "short_name": "المبيعات",
+  "start_url": "./",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "ar",
+  "description": "نظام إدارة العملاء والمخزون والمبيعات والديون"
+}
