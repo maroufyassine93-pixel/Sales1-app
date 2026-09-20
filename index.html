@@ -96,6 +96,11 @@
         
         .info-box { background: var(--input-bg); padding: 10px; border-radius: 8px; margin-bottom: 10px; color: var(--text-main); border: 1px solid var(--border); }
         .visited-badge { font-size: 0.65rem; background: var(--visited-badge-bg); color: var(--visited-badge-color); padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
+
+        /* نافذة التنبيه المخصصة الخالية من عناوين المتصفح */
+        #custom-alert-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
+        .custom-modal-content { background: var(--surface); color: var(--text-main); max-width: 360px; width: 100%; border-radius: var(--radius); padding: 22px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); animation: popIn 0.2s ease-out; }
+        @keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -203,10 +208,21 @@
         </div>
     </div>
 
+    <!-- نافذة تنبيه مخصصة تمبديل alert -->
+    <div id="custom-alert-modal">
+        <div class="custom-modal-content">
+            <div style="font-size: 2.2rem; color: var(--primary); margin-bottom: 10px;">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <p id="custom-alert-msg" style="font-size: 0.95rem; font-weight: 700; margin: 0 0 16px 0; color: var(--text-main); line-height: 1.5;"></p>
+            <button class="btn btn-primary" style="margin: 0;" onclick="closeCustomAlert()">حسناً</button>
+        </div>
+    </div>
+
     <!-- نافذة منبثقة لعرض سجل الزبون -->
     <div id="client-history-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:2000; padding:20px; overflow-y:auto;">
         <div style="background:var(--surface); color:var(--text-main); max-width:500px; margin:40px auto; border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); border:1px solid var(--border);">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px;">
+            <div style="display:flex; justify-style:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px;">
                 <h3 style="margin:0; font-size:1.05rem;"><i class="fa-solid fa-address-book"></i> سجل معاملات الزبون</h3>
                 <button class="btn btn-danger" style="width:auto; padding:4px 10px; margin:0; font-size:0.75rem;" onclick="closeClientHistory()"><i class="fa-solid fa-xmark"></i> إغلاق</button>
             </div>
@@ -255,7 +271,31 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// نسخة الهاتف المحلية: لا Flask ولا API خارجي. البيانات تحفظ داخل الهاتف عبر localStorage.
+// نافذة تنبيه مخصصة لمنع ظهور عنوان رابط الصفحة في المتصفح أو التطبيق
+let customAlertCallback = null;
+function showAlert(msg, callback) {
+    customAlertCallback = callback || null;
+    const msgEl = document.getElementById('custom-alert-msg');
+    if (msgEl) msgEl.innerText = msg;
+    const modal = document.getElementById('custom-alert-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeCustomAlert() {
+    const modal = document.getElementById('custom-alert-modal');
+    if (modal) modal.style.display = 'none';
+    if (typeof customAlertCallback === 'function') {
+        const cb = customAlertCallback;
+        customAlertCallback = null;
+        cb();
+    }
+}
+
+// استبدال window.alert لتطبيق التنبيه المخصص تلقائياً
+window.alert = function(msg) {
+    showAlert(msg);
+};
+
 const DB_KEY = 'sales_app_db_v1';
 const defaultDB = {clients:[], products:[], orders:[], orderItems:[], settings:{last_reset_date:null}, nextIds:{clients:1,products:1,orders:1,orderItems:1}};
 let db = loadDB();
@@ -278,8 +318,47 @@ let currentLat=null,currentLng=null,selectedMarker=null;
 let allClients=[],availableProducts=[],currentCart=[]; let showOnlyUnvisited=false;
 function switchTab(tabId,element){document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));document.getElementById(tabId).classList.add('active');if(element)element.classList.add('active');if(tabId==='tab-clients')setTimeout(()=>clientMap.invalidateSize(),200);}
 clientMap.on('click',e=>{const lat=e.latlng.lat.toFixed(6),lng=e.latlng.lng.toFixed(6);document.getElementById('lat').value=lat;document.getElementById('lng').value=lng;if(selectedMarker)selectedMarker.setLatLng(e.latlng);else selectedMarker=L.marker(e.latlng).addTo(clientMap);});
-function initGPS(){if(!navigator.geolocation){alert('ميزة GPS غير متاحة على هذا الجهاز');return;}navigator.geolocation.getCurrentPosition(p=>{currentLat=p.coords.latitude;currentLng=p.coords.longitude;clientMap.setView([currentLat,currentLng],14);sortClientsByDistance();filterClientsList();},()=>console.warn('GPS غير متاح أو تم رفض الإذن'),{enableHighAccuracy:true,timeout:10000,maximumAge:30000});}
-function fillCurrentLocation(){if(currentLat!=null&&currentLng!=null){document.getElementById('lat').value=currentLat.toFixed(6);document.getElementById('lng').value=currentLng.toFixed(6);clientMap.setView([currentLat,currentLng],15);if(selectedMarker)selectedMarker.setLatLng([currentLat,currentLng]);else selectedMarker=L.marker([currentLat,currentLng]).addTo(clientMap);}else{alert('جاري جلب إحداثيات GPS...');initGPS();}}
+
+function initGPS(callback){
+    if(!navigator.geolocation){
+        showAlert('ميزة GPS غير متاحة على هذا الجهاز');
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(p=>{
+        currentLat=p.coords.latitude;
+        currentLng=p.coords.longitude;
+        clientMap.setView([currentLat,currentLng],14);
+        sortClientsByDistance();
+        filterClientsList();
+        if(typeof callback === 'function') callback(currentLat, currentLng);
+    }, err=>{
+        let msg = 'تعذر تحديد الموقع الجغرافي، يرجى تفعيل الـ GPS والسماح بالوصول للموقع';
+        if(err.code === 1) msg = 'تم رفض إذن الوصول للموقع (GPS)';
+        else if(err.code === 2) msg = 'الموقع غير متاح حالياً، تحقق من تفعيل الـ GPS';
+        else if(err.code === 3) msg = 'انتهت مهلة تحديد الموقع';
+        showAlert(msg);
+    },{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
+}
+
+function fillCurrentLocation(){
+    if(currentLat!=null && currentLng!=null){
+        document.getElementById('lat').value=currentLat.toFixed(6);
+        document.getElementById('lng').value=currentLng.toFixed(6);
+        clientMap.setView([currentLat,currentLng],15);
+        if(selectedMarker) selectedMarker.setLatLng([currentLat,currentLng]);
+        else selectedMarker=L.marker([currentLat,currentLng]).addTo(clientMap);
+        showAlert('تم تحديد موقعك الحالي بنجاح ✓');
+    } else {
+        initGPS((lat, lng)=>{
+            document.getElementById('lat').value=lat.toFixed(6);
+            document.getElementById('lng').value=lng.toFixed(6);
+            clientMap.setView([lat,lng],15);
+            if(selectedMarker) selectedMarker.setLatLng([lat,lng]);
+            else selectedMarker=L.marker([lat,lng]).addTo(clientMap);
+            showAlert('تم تحديد موقعك الحالي بنجاح ✓');
+        });
+    }
+}
 
 function loadData(){checkAndResetDailyVisits();allClients=clone(db.clients);availableProducts=clone(db.products);sortClientsByDistance();filterClientsList();renderInventoryStock();const totalSales=db.orders.filter(o=>o.date.slice(0,10)===today()).reduce((s,o)=>s+Number(o.total_amount||0),0);const totalDebt=db.clients.reduce((s,c)=>s+Number(c.debt||0),0);const totalClients=db.clients.length;const visited=db.clients.filter(c=>c.visited===1).length;document.getElementById('total-sales').innerText=totalSales+' د.ج';document.getElementById('total-debt').innerText=totalDebt+' د.ج';document.getElementById('succ-rate').innerText=(totalClients?Math.floor(visited/totalClients*100):0)+'%';}
 function sortClientsByDistance(){if(currentLat==null||currentLng==null)return;allClients.forEach(c=>{const R=6371,dLat=(Number(c.lat)-currentLat)*Math.PI/180,dLng=(Number(c.lng)-currentLng)*Math.PI/180,a=Math.sin(dLat/2)**2+Math.cos(currentLat*Math.PI/180)*Math.cos(Number(c.lat)*Math.PI/180)*Math.sin(dLng/2)**2;c.distance=2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));});allClients.sort((a,b)=>(a.distance||9999)-(b.distance||9999));}
@@ -288,28 +367,75 @@ function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;',
 function toggleUnvisitedFilter(){showOnlyUnvisited=!showOnlyUnvisited;const b=document.getElementById('filter-unvisited-btn');b.style.background=showOnlyUnvisited?'var(--primary)':'var(--input-bg)';b.style.color=showOnlyUnvisited?'#fff':'var(--text-main)';filterClientsList();}
 function filterClientsList(){const q=(document.getElementById('search-input').value||'').toLowerCase();renderClientsList(allClients.filter(c=>(c.name.toLowerCase().includes(q)||(c.phone&&c.phone.includes(q)))&&(!showOnlyUnvisited||c.visited==0)));}
 function renderInventoryStock(){const container=document.getElementById('inventory-stock-list');let html='<table class="cart-table"><thead><tr><th>المنتج</th><th>السعر</th><th>المتبقي</th><th>إجراءات</th></tr></thead><tbody>';availableProducts.forEach(p=>{const sc=p.stock<=3?'color:var(--danger);font-weight:bold;':'';html+=`<tr><td><strong>${escapeHtml(p.name)}</strong></td><td>${p.price} د.ج</td><td style="${sc}">${p.stock}</td><td><div style="display:flex;gap:4px;justify-content:flex-end;"><button class="btn btn-success" style="width:auto;padding:3px 7px;margin:0;font-size:0.75rem;" onclick="restockProduct(${p.id},${p.stock})"><i class="fa-solid fa-plus"></i></button><button class="btn btn-secondary" style="width:auto;padding:3px 7px;margin:0;font-size:0.75rem;" onclick="openEditProduct(${p.id})"><i class="fa-solid fa-pen"></i></button><button class="btn btn-danger" style="width:auto;padding:3px 7px;margin:0;font-size:0.75rem;" onclick="deleteProduct(${p.id})"><i class="fa-solid fa-trash"></i></button></div></td></tr>`;});html+='</tbody></table>';container.innerHTML=html;}
-function restockProduct(id,current){const n=parseInt(prompt('أدخل الكمية الجديدة المضافة للمخزون:'));if(!n||n<=0)return alert('يرجى إدخال رقم كمية صالح');const p=db.products.find(x=>x.id===id);if(!p)return;p.stock=current+n;saveDB();alert(`تمت إضافة ${n} قطعة إلى المخزون بنجاح`);loadData();}
+function restockProduct(id,current){const n=parseInt(prompt('أدخل الكمية الجديدة المضافة للمخزون:'));if(!n||n<=0)return showAlert('يرجى إدخال رقم كمية صالح');const p=db.products.find(x=>x.id===id);if(!p)return;p.stock=current+n;saveDB();showAlert(`تمت إضافة ${n} قطعة إلى المخزون بنجاح`);loadData();}
 function openEditProduct(id){const p=db.products.find(x=>x.id===id);if(!p)return;document.getElementById('edit-prod-id').value=p.id;document.getElementById('edit-prod-name').value=p.name;document.getElementById('edit-prod-price').value=p.price;document.getElementById('edit-prod-stock').value=p.stock;document.getElementById('edit-product-modal').style.display='block';}
 function closeEditProductModal(){document.getElementById('edit-product-modal').style.display='none';}
-function saveProductUpdate(){const id=Number(document.getElementById('edit-prod-id').value),name=document.getElementById('edit-prod-name').value.trim(),price=parseFloat(document.getElementById('edit-prod-price').value),stock=parseInt(document.getElementById('edit-prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return alert('يرجى إدخال كافة البيانات بشكل صحيح');const p=db.products.find(x=>x.id===id);if(!p)return;p.name=name;p.price=price;p.stock=stock;saveDB();alert('تم تعديل المنتج بنجاح');closeEditProductModal();loadData();}
-function deleteProduct(id){if(!confirm('هل أنت متأكد من حذف هذا المنتج نهائياً من المخزن؟'))return;db.products=db.products.filter(p=>p.id!==id);saveDB();alert('تم حذف المنتج بنجاح');loadData();}
-function openClientOrder(id){const client=allClients.find(c=>c.id===id);if(!client)return;currentCart=[];const opts=availableProducts.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${p.price} د.ج) - متبقي: ${p.stock}</option>`).join('');document.getElementById('selected-client-info').innerHTML=`<div class="info-box"><strong>${escapeHtml(client.name)}</strong><div style="display:flex;gap:6px;margin:6px 0;">${client.phone?`<a href="tel:${client.phone}" class="btn-call"><i class="fa-solid fa-phone"></i> ${client.phone}</a>`:''}<a href="https://www.google.com/maps/dir/?api=1&destination=${client.lat},${client.lng}" target="_blank" class="btn-map-nav"><i class="fa-solid fa-map-location-dot"></i> فتح بخرائط جوجل</a></div><span style="color:var(--danger);font-weight:bold;">🔴 الدين الحالي: ${client.debt} د.ج</span></div><select id="select-prod">${opts}</select><input type="number" id="select-qty" value="1" style="margin-top:6px;"><button class="btn btn-secondary" onclick="addToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button><div id="cart-display"></div><input type="number" id="paid-amt" placeholder="المبلغ المدفوع كاش" style="margin-top:10px;"><button class="btn btn-success" onclick="submitOrder(${client.id})">تأكيد البيع وخصم المخزون</button><div id="whatsapp-btn-container"></div><div style="border-top:1px dashed var(--border);margin-top:12px;padding-top:10px;"><input type="number" id="pay-amt" placeholder="المبلغ المسدد من الدين القديم"><button class="btn btn-success" onclick="submitPayment(${client.id})">تسديد الدين</button></div>`;document.getElementById('selected-client-order-section').style.display='block';window.scrollTo({top:0,behavior:'smooth'});}
+function saveProductUpdate(){const id=Number(document.getElementById('edit-prod-id').value),name=document.getElementById('edit-prod-name').value.trim(),price=parseFloat(document.getElementById('edit-prod-price').value),stock=parseInt(document.getElementById('edit-prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return showAlert('يرجى إدخال كافة البيانات بشكل صحيح');const p=db.products.find(x=>x.id===id);if(!p)return;p.name=name;p.price=price;p.stock=stock;saveDB();showAlert('تم تعديل المنتج بنجاح');closeEditProductModal();loadData();}
+function deleteProduct(id){if(!confirm('هل أنت متأكد من حذف هذا المنتج نهائياً من المخزن؟'))return;db.products=db.products.filter(p=>p.id!==id);saveDB();showAlert('تم حذف المنتج بنجاح');loadData();}
+
+function openClientOrder(id){
+    const client=allClients.find(c=>c.id===id);
+    if(!client)return;
+    currentCart=[];
+    const opts=availableProducts.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${p.price} د.ج) - متبقي: ${p.stock}</option>`).join('');
+    document.getElementById('selected-client-info').innerHTML=`<div class="info-box"><strong>${escapeHtml(client.name)}</strong><div style="display:flex;gap:6px;margin:6px 0;">${client.phone?`<a href="tel:${client.phone}" class="btn-call"><i class="fa-solid fa-phone"></i> ${client.phone}</a>`:''}<a href="https://www.google.com/maps/dir/?api=1&destination=${client.lat},${client.lng}" target="_blank" class="btn-map-nav"><i class="fa-solid fa-map-location-dot"></i> فتح بخرائط جوجل</a></div><span style="color:var(--danger);font-weight:bold;">🔴 الدين الحالي: ${client.debt} د.ج</span></div><select id="select-prod">${opts}</select><input type="number" id="select-qty" value="1" style="margin-top:6px;"><button class="btn btn-secondary" onclick="addToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button><div id="cart-display"></div><input type="number" id="paid-amt" placeholder="المبلغ المدفوع كاش" style="margin-top:10px;"><button class="btn btn-success" onclick="submitOrder(${client.id})">تأكيد البيع</button><div id="whatsapp-btn-container"></div><div style="border-top:1px dashed var(--border);margin-top:12px;padding-top:10px;"><input type="number" id="pay-amt" placeholder="المبلغ المسدد من الدين القديم"><button class="btn btn-success" onclick="submitPayment(${client.id})">تسديد الدين</button></div>`;
+    document.getElementById('selected-client-order-section').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+
 function closeClientOrder(){document.getElementById('selected-client-order-section').style.display='none';currentCart=[];}
 function openClientHistory(id){document.getElementById('client-history-modal').style.display='block';const client=db.clients.find(c=>c.id===id);if(!client)return;const orders=db.orders.filter(o=>o.client_id===id).sort((a,b)=>b.date.localeCompare(a.date));let rows=[];orders.forEach(o=>{db.orderItems.filter(i=>i.order_id===o.id).forEach(i=>rows.push({...o,...i}));});let html=`<div class="info-box"><strong>الاسم: ${escapeHtml(client.name)}</strong><br><small>الهاتف: ${escapeHtml(client.phone||'غير متوفر')}</small><br><span style="color:var(--danger);font-weight:bold;">إجمالي الدين الحالي: ${client.debt} د.ج</span></div><h4 style="font-size:0.9rem;margin-bottom:8px;">تفاصيل المشتريات والطلبيات السابقة:</h4>`;if(!rows.length)html+='<p style="text-align:center;color:var(--text-muted);">لا توجد طلبيات مسجلة لهذا الزبون حتى الآن.</p>';else{html+='<table class="cart-table"><thead><tr><th>التاريخ</th><th>السلعة</th><th>الكمية</th><th>المبلغ المدفوع</th><th>الدين</th></tr></thead><tbody>';rows.forEach(o=>html+=`<tr><td><small>${o.date.substring(0,10)}</small></td><td>${escapeHtml(o.name||'')}</td><td>${o.quantity}</td><td>${o.paid_amount} د.ج</td><td style="color:var(--danger);">${o.debt_amount} د.ج</td></tr>`);html+='</tbody></table>';}document.getElementById('client-history-content').innerHTML=html;}
 function closeClientHistory(){document.getElementById('client-history-modal').style.display='none';}
 function openEditClient(id){const c=allClients.find(x=>x.id===id);if(!c)return;document.getElementById('edit-client-id').value=c.id;document.getElementById('edit-client-name').value=c.name;document.getElementById('edit-client-phone').value=c.phone||'';document.getElementById('edit-lat').value=c.lat||'';document.getElementById('edit-lng').value=c.lng||'';document.getElementById('edit-client-modal').style.display='block';}
 function closeEditClientModal(){document.getElementById('edit-client-modal').style.display='none';}
-function updateClient(){const id=Number(document.getElementById('edit-client-id').value),name=document.getElementById('edit-client-name').value.trim(),phone=document.getElementById('edit-client-phone').value.trim(),lat=parseFloat(document.getElementById('edit-lat').value),lng=parseFloat(document.getElementById('edit-lng').value);if(!name||isNaN(lat)||isNaN(lng))return alert('يرجى إدخال بيانات صحيحة');const c=db.clients.find(x=>x.id===id);if(!c)return;c.name=name;c.phone=phone;c.lat=lat;c.lng=lng;saveDB();alert('تم تعديل معلومات الزبون بنجاح');closeEditClientModal();loadData();}
-function addToCart(){const pid=parseInt(document.getElementById('select-prod').value),qty=parseInt(document.getElementById('select-qty').value)||1,p=availableProducts.find(x=>x.id===pid);if(!p)return;if(qty>p.stock)return alert(`عذراً، الكمية المطلوبة (${qty}) أكبر من المخزون المتبقي (${p.stock}) لهذا المنتج!`);const e=currentCart.find(x=>x.product_id===pid);if(e){if(e.quantity+qty>p.stock)return alert(`عذراً، إجمالي الكمية في السلة يتجاوز المتبقي في المخزون (${p.stock})!`);e.quantity+=qty;}else currentCart.push({product_id:pid,name:p.name,quantity:qty,price:p.price});renderCart();}
+function updateClient(){const id=Number(document.getElementById('edit-client-id').value),name=document.getElementById('edit-client-name').value.trim(),phone=document.getElementById('edit-client-phone').value.trim(),lat=parseFloat(document.getElementById('edit-lat').value),lng=parseFloat(document.getElementById('edit-lng').value);if(!name||isNaN(lat)||isNaN(lng))return showAlert('يرجى إدخال بيانات صحيحة');const c=db.clients.find(x=>x.id===id);if(!c)return;c.name=name;c.phone=phone;c.lat=lat;c.lng=lng;saveDB();showAlert('تم تعديل معلومات الزبون بنجاح');closeEditClientModal();loadData();}
+function addToCart(){const pid=parseInt(document.getElementById('select-prod').value),qty=parseInt(document.getElementById('select-qty').value)||1,p=availableProducts.find(x=>x.id===pid);if(!p)return;if(qty>p.stock)return showAlert(`عذراً، الكمية المطلوبة (${qty}) أكبر من المخزون المتبقي (${p.stock}) لهذا المنتج!`);const e=currentCart.find(x=>x.product_id===pid);if(e){if(e.quantity+qty>p.stock)return showAlert(`عذراً، إجمالي الكمية في السلة يتجاوز المتبقي في المخزون (${p.stock})!`);e.quantity+=qty;}else currentCart.push({product_id:pid,name:p.name,quantity:qty,price:p.price});renderCart();}
 function removeFromCart(i){currentCart.splice(i,1);renderCart();}
 function renderCart(){let html='<table class="cart-table"><thead><tr><th>المنتج</th><th>الكمية</th><th>المجموع</th><th>حذف</th></tr></thead><tbody>',total=0;currentCart.forEach((it,i)=>{total+=it.quantity*it.price;html+=`<tr><td>${escapeHtml(it.name)}</td><td>${it.quantity}</td><td>${it.quantity*it.price} د.ج</td><td><button class="btn btn-danger" style="width:auto;padding:2px 6px;margin:0;font-size:0.7rem;" onclick="removeFromCart(${i})"><i class="fa-solid fa-trash"></i></button></td></tr>`});html+=`</tbody></table><p style="font-weight:bold;margin-top:6px;">المجموع الكلي: ${total} د.ج</p>`;document.getElementById('cart-display').innerHTML=html;}
-function submitOrder(cid){const paid=parseFloat(document.getElementById('paid-amt').value)||0;if(currentCart.length===0)return alert('يرجى إضافة منتجات للسلة أولاً');if(paid<0)return alert('المبلغ المدفوع لا يمكن أن يكون سالباً');const client=db.clients.find(c=>c.id===cid);if(!client)return;for(const it of currentCart){const p=db.products.find(x=>x.id===it.product_id);if(!p||p.stock<it.quantity)return alert(`المخزون غير كافٍ للمنتج: ${it.name}`);}const total=currentCart.reduce((s,i)=>s+i.quantity*i.price,0),debt=total-paid;if(debt<0)return alert('المبلغ المدفوع أكبر من إجمالي الطلبية');const orderId=nextId('orders');db.orders.push({id:orderId,client_id:cid,total_amount:total,paid_amount:paid,debt_amount:debt,date:new Date().toISOString()});currentCart.forEach(it=>{const p=db.products.find(x=>x.id===it.product_id);p.stock-=it.quantity;db.orderItems.push({id:nextId('orderItems'),order_id:orderId,product_id:it.product_id,name:it.name,quantity:it.quantity,price:it.price});});client.debt=Number(client.debt||0)+debt;client.visited=1;saveDB();alert('تم تسجيل الطلبية بنجاح');let msg=`مرحباً بك ${client.name}، تفاصيل طلبيتك:\n`;currentCart.forEach(i=>msg+=`- ${i.name} (${i.quantity}) : ${i.quantity*i.price} د.ج\n`);msg+=`المجموع الكلي: ${total} د.ج\nالمبلغ المدفوع: ${paid} د.ج\nالباقي (دين): ${debt} د.ج`;if(client.phone){const clean=client.phone.startsWith('0')?'213'+client.phone.slice(1):client.phone;window.location.href=`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;}closeClientOrder();loadData();}
-function submitPayment(cid){const pay=parseFloat(document.getElementById('pay-amt').value)||0;if(pay<=0)return alert('يرجى إدخال مبلغ صحيح');const c=db.clients.find(x=>x.id===cid);if(!c)return;c.debt=Number(c.debt||0)-pay;saveDB();alert('تم تسديد الدين بنجاح');closeClientOrder();loadData();}
-function saveClient(){const name=document.getElementById('client-name').value.trim(),phone=document.getElementById('client-phone').value.trim(),lat=parseFloat(document.getElementById('lat').value),lng=parseFloat(document.getElementById('lng').value);if(!name||isNaN(lat)||isNaN(lng))return alert('يرجى إدخال اسم الزبون وتحديد موقعه على الخريطة');db.clients.push({id:nextId('clients'),name,phone,lat,lng,debt:0,visited:0});saveDB();alert('تم حفظ الزبون بنجاح');['client-name','client-phone','lat','lng'].forEach(id=>document.getElementById(id).value='');if(selectedMarker){clientMap.removeLayer(selectedMarker);selectedMarker=null;}loadData();switchTab('tab-route',document.querySelectorAll('.nav-item')[0]);}
-function saveProduct(){const name=document.getElementById('prod-name').value.trim(),price=parseFloat(document.getElementById('prod-price').value),stock=parseInt(document.getElementById('prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return alert('يرجى ملء جميع حقول المنتج بشكل صحيح');db.products.push({id:nextId('products'),name,price,stock});saveDB();alert('تم حفظ المنتج بنجاح');['prod-name','prod-price','prod-stock'].forEach(id=>document.getElementById(id).value='');loadData();}
-function resetDailyVisits(){if(!confirm('هل تريد تصفير الزيارات اليومية؟'))return;db.clients.forEach(c=>c.visited=0);db.settings.last_reset_date=today();saveDB();loadData();alert('تمت إعادة ضبط الزيارات اليومية بنجاح');}
+
+function submitOrder(cid){
+    const paid=parseFloat(document.getElementById('paid-amt').value)||0;
+    if(currentCart.length===0)return showAlert('يرجى إضافة منتجات للسلة أولاً');
+    if(paid<0)return showAlert('المبلغ المدفوع لا يمكن أن يكون سالباً');
+    const client=db.clients.find(c=>c.id===cid);
+    if(!client)return;
+    for(const it of currentCart){
+        const p=db.products.find(x=>x.id===it.product_id);
+        if(!p||p.stock<it.quantity)return showAlert(`المخزون غير كافٍ للمنتج: ${it.name}`);
+    }
+    const total=currentCart.reduce((s,i)=>s+i.quantity*i.price,0),debt=total-paid;
+    if(debt<0)return showAlert('المبلغ المدفوع أكبر من إجمالي الطلبية');
+    const orderId=nextId('orders');
+    db.orders.push({id:orderId,client_id:cid,total_amount:total,paid_amount:paid,debt_amount:debt,date:new Date().toISOString()});
+    currentCart.forEach(it=>{
+        const p=db.products.find(x=>x.id===it.product_id);
+        p.stock-=it.quantity;
+        db.orderItems.push({id:nextId('orderItems'),order_id:orderId,product_id:it.product_id,name:it.name,quantity:it.quantity,price:it.price});
+    });
+    client.debt=Number(client.debt||0)+debt;
+    client.visited=1;
+    saveDB();
+
+    let msg=`مرحباً بك ${client.name}، تفاصيل طلبيتك:\n`;
+    currentCart.forEach(i=>msg+=`- ${i.name} (${i.quantity}) : ${i.quantity*i.price} د.ج\n`);
+    msg+=`المجموع الكلي: ${total} د.ج\nالمبلغ المدفوع: ${paid} د.ج\nالباقي (دين): ${debt} د.ج`;
+
+    showAlert('تم تسجيل الطلبية بنجاح', () => {
+        if(client.phone){
+            const clean=client.phone.startsWith('0')?'213'+client.phone.slice(1):client.phone;
+            window.location.href=`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+        }
+        closeClientOrder();
+        loadData();
+    });
+}
+
+function submitPayment(cid){const pay=parseFloat(document.getElementById('pay-amt').value)||0;if(pay<=0)return showAlert('يرجى إدخال مبلغ صحيح');const c=db.clients.find(x=>x.id===cid);if(!c)return;c.debt=Number(c.debt||0)-pay;saveDB();showAlert('تم تسديد الدين بنجاح');closeClientOrder();loadData();}
+function saveClient(){const name=document.getElementById('client-name').value.trim(),phone=document.getElementById('client-phone').value.trim(),lat=parseFloat(document.getElementById('lat').value),lng=parseFloat(document.getElementById('lng').value);if(!name||isNaN(lat)||isNaN(lng))return showAlert('يرجى إدخال اسم الزبون وتحديد موقعه على الخريطة');db.clients.push({id:nextId('clients'),name,phone,lat,lng,debt:0,visited:0});saveDB();showAlert('تم حفظ الزبون بنجاح');['client-name','client-phone','lat','lng'].forEach(id=>document.getElementById(id).value='');if(selectedMarker){clientMap.removeLayer(selectedMarker);selectedMarker=null;}loadData();switchTab('tab-route',document.querySelectorAll('.nav-item')[0]);}
+function saveProduct(){const name=document.getElementById('prod-name').value.trim(),price=parseFloat(document.getElementById('prod-price').value),stock=parseInt(document.getElementById('prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return showAlert('يرجى ملء جميع حقول المنتج بشكل صحيح');db.products.push({id:nextId('products'),name,price,stock});saveDB();showAlert('تم حفظ المنتج بنجاح');['prod-name','prod-price','prod-stock'].forEach(id=>document.getElementById(id).value='');loadData();}
+function resetDailyVisits(){if(!confirm('هل تريد تصفير الزيارات اليومية؟'))return;db.clients.forEach(c=>c.visited=0);db.settings.last_reset_date=today();saveDB();loadData();showAlert('تمت إعادة ضبط الزيارات اليومية بنجاح');}
 function exportBackup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sales_backup_'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-function importBackup(event){const file=event.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.clients||!d.products||!d.orders||!d.orderItems)throw new Error('ملف غير صالح');if(!confirm('سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متابعة؟'))return;db=d;saveDB();loadData();alert('تمت استعادة النسخة الاحتياطية بنجاح');}catch(e){alert('تعذر استعادة النسخة: الملف غير صالح');}};r.readAsText(file);}
+function importBackup(event){const file=event.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.clients||!d.products||!d.orders||!d.orderItems)throw new Error('ملف غير صالح');if(!confirm('سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متابعة؟'))return;db=d;saveDB();loadData();showAlert('تمت استعادة النسخة الاحتياطية بنجاح');}catch(e){showAlert('تعذر استعادة النسخة: الملف غير صالح');}};r.readAsText(file);}
 window.addEventListener('load',()=>{loadData();initGPS();});
 </script>
 </body>
