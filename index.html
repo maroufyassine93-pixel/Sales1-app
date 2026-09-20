@@ -1,268 +1,498 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>نظام المبيعات</title>
-  <style>
-    /* التنسيقات العامة والتصميم الداكن */
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: #121824;
-      color: #f3f4f6;
-      margin: 0;
-      padding: 20px;
-      direction: rtl;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>نظام إدارة المبيعات</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #2563eb; 
+            --success: #10b981; 
+            --danger: #ef4444;
+            --background: #f8fafc; 
+            --surface: #ffffff; 
+            --text-main: #0f172a;
+            --text-muted: #64748b; 
+            --border: #e2e8f0; 
+            --input-bg: #f1f5f9;
+            --appbar-bg: #0f172a;
+            --card-muted-bg: #f1f5f9;
+            --visited-badge-bg: #cbd5e1;
+            --visited-badge-color: #334155;
+            --radius: 16px;
+            --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        }
 
-    .container {
-      max-width: 480px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
+        [data-theme="dark"] {
+            --primary: #3b82f6; 
+            --success: #10b981; 
+            --danger: #f87171;
+            --background: #0f172a; 
+            --surface: #1e293b; 
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8; 
+            --border: #334155; 
+            --input-bg: #334155;
+            --appbar-bg: #1e293b;
+            --card-muted-bg: #334155;
+            --visited-badge-bg: #475569;
+            --visited-badge-color: #e2e8f0;
+            --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+        }
 
-    .card {
-      background-color: #1f2937;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
+        * { box-sizing: border-box; font-family: 'Cairo', sans-serif; -webkit-tap-highlight-color: transparent; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
+        body { background: var(--background); color: var(--text-main); margin: 0; padding-bottom: 80px; }
+        
+        .app-bar { background: var(--appbar-bg); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .app-bar h1 { margin: 0; font-size: 1.1rem; font-weight: 800; display: flex; gap: 8px; }
+        .app-bar-actions { display: flex; align-items: center; gap: 10px; }
+        
+        .theme-toggle-btn { background: rgba(255, 255, 255, 0.1); border: none; color: #f8fafc; padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .theme-toggle-btn:hover { background: rgba(255, 255, 255, 0.2); }
+        
+        .status-badge { font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 4px 10px; border-radius: 20px; }
+        
+        .bottom-nav { position: fixed; bottom: 0; right: 0; left: 0; background: var(--surface); display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid var(--border); z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 0.72rem; font-weight: 600; background: none; border: none; flex: 1; cursor: pointer; }
+        .nav-item.active { color: var(--primary); }
+        
+        .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .map-box { height: 240px; width: 100%; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border); }
+        
+        [data-theme="dark"] .leaflet-tile-pane {
+            filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+        }
 
-    .btn {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background-color 0.2s, transform 0.1s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .btn:active { transform: scale(0.98); }
+        .card { background: var(--surface); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px dashed var(--border); padding-bottom: 10px; }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .stat-card { background: var(--surface); padding: 10px; border-radius: var(--radius); border: 1px solid var(--border); text-align: center; }
+        .stat-card .val { font-size: 1rem; font-weight: 800; color: var(--primary); margin-top: 4px; }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; color: var(--text-main); }
+        input, select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--input-bg); color: var(--text-main); font-size: 0.9rem; outline: none; }
+        
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-secondary { background: var(--input-bg); color: var(--text-main); border: 1px solid var(--border); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-call { background: #0ea5e9; color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+        .btn-map-nav { background: #f59e0b; color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+        
+        .cart-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        .cart-table th { background: var(--input-bg); padding: 8px; text-align: right; color: var(--text-muted); }
+        .cart-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+        
+        .client-route-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .client-route-card.visited { background: var(--card-muted-bg); opacity: 0.8; border-color: var(--border); }
+        
+        .info-box { background: var(--input-bg); padding: 10px; border-radius: 8px; margin-bottom: 10px; color: var(--text-main); border: 1px solid var(--border); }
+        .visited-badge { font-size: 0.65rem; background: var(--visited-badge-bg); color: var(--visited-badge-color); padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
 
-    .btn-primary {
-      background-color: #10b981;
-      color: #ffffff;
-    }
-    .btn-primary:hover { background-color: #059669; }
-
-    .btn-secondary {
-      background-color: #374151;
-      color: #e5e7eb;
-    }
-    .btn-secondary:hover { background-color: #4b5563; }
-
-    /* 1. شريط الإشعار المخصص (Toast) */
-    .custom-toast {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background-color: #10b981;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-weight: bold;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-      z-index: 10000;
-      opacity: 0;
-      transition: all 0.3s ease-in-out;
-    }
-
-    .custom-toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-
-    /* 2. النافذة المنبثقة المخصصة (Modal) - بديل confirm */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-card {
-      background: #1f2937;
-      color: #ffffff;
-      padding: 24px;
-      border-radius: 12px;
-      text-align: center;
-      width: 85%;
-      max-width: 360px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    }
-
-    .modal-card p {
-      margin: 0 0 20px 0;
-      font-size: 15px;
-      line-height: 1.5;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-    }
-
-    .btn-ok { background-color: #10b981; color: white; flex: 1; }
-    .btn-cancel { background-color: #ef4444; color: white; flex: 1; }
-  </style>
+        /* نوافذ التنبيه والتأكيد المخصصة الخالية من عناوين المتصفح */
+        #custom-alert-modal, #custom-confirm-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 3000; align-items: center; justify-content: center; padding: 20px; }
+        .custom-modal-content { background: var(--surface); color: var(--text-main); max-width: 360px; width: 100%; border-radius: var(--radius); padding: 22px; text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); animation: popIn 0.2s ease-out; }
+        @keyframes popIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
 </head>
 <body>
 
-  <div class="container">
-    <!-- قسم تأكيد البيع -->
-    <div class="card">
-      <!-- زر معدل: تم حذف عبارة (وخصم من المخزون) -->
-      <button class="btn btn-primary" onclick="handleSaleConfirm()">
-        تأكيد البيع
-      </button>
+    <div class="app-bar">
+        <h1><i class="fa-solid fa-truck-ramp-box"></i> نظام المبيعات</h1>
+        <div class="app-bar-actions">
+            <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-btn">
+                <i class="fa-solid fa-moon" id="theme-icon"></i>
+            </button>
+            <div class="status-badge" id="gps-status"><i class="fa-solid fa-location-dot"></i> نشط</div>
+        </div>
     </div>
 
-    <!-- قسم تحديد الموقع الجغرافي -->
-    <div class="card">
-      <button class="btn btn-secondary" onclick="getGeoLocation()">
-        📍 تحديد الموقع الجغرافي
-      </button>
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="lbl" style="font-size:0.68rem; color:var(--text-muted)">مبيعات اليوم</div>
+                <div class="val" id="total-sales">0 د.ج</div>
+            </div>
+            <div class="stat-card">
+                <div class="lbl" style="font-size:0.68rem; color:var(--text-muted)">إجمالي الديون</div>
+                <div class="val" style="color: var(--danger);" id="total-debt">0 د.ج</div>
+            </div>
+            <div class="stat-card">
+                <div class="lbl" style="font-size:0.68rem; color:var(--text-muted)">الزيارات</div>
+                <div class="val" style="color: var(--success);" id="succ-rate">0%</div>
+            </div>
+        </div>
+
+        <!-- TAB 1: المسار -->
+        <div id="tab-route" class="tab-content active">
+            <div class="card" id="selected-client-order-section" style="display: none; border: 2px solid var(--primary);">
+                <div class="card-header">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <i class="fa-solid fa-basket-shopping" style="color: var(--primary);"></i>
+                        <h3 style="margin:0; font-size:1rem;">إضافة طلبية للزبون</h3>
+                    </div>
+                    <button class="btn btn-danger" style="width:auto; padding:4px 10px; margin:0; font-size:0.75rem;" onclick="closeClientOrder()">
+                        <i class="fa-solid fa-xmark"></i> إغلاق
+                    </button>
+                </div>
+                <div id="selected-client-info"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; gap:8px; align-items:center;"><i class="fa-solid fa-list-ol"></i><h3 style="margin:0; font-size:1rem;">قائمة الزبائن</h3></div>
+                    <span style="font-size:0.7rem; color:var(--primary); font-weight:bold;"><i class="fa-solid fa-route"></i> مرتبة للأقرب</span>
+                </div>
+                
+                <div style="display:flex; gap:8px; margin-bottom: 12px;">
+                    <input type="text" id="search-input" placeholder="🔍 بحث عن زبون..." oninput="filterClientsList()" style="flex:1;">
+                    <button id="filter-unvisited-btn" class="btn btn-secondary" style="width:auto; margin:0; padding:0 12px; white-space:nowrap;" onclick="toggleUnvisitedFilter()">
+                        <i class="fa-solid fa-eye-slash"></i> غير المزارين
+                    </button>
+                </div>
+
+                <div id="sorted-clients-list"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2: الزبائن وتحديد الموقع -->
+        <div id="tab-clients" class="tab-content">
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-user-plus"></i><h3 style="margin:0; font-size:1rem;">إضافة زبون جديد وتحديد موقعه</h3></div>
+                <div class="form-group"><label>اسم الزبون / المحل</label><input type="text" id="client-name" placeholder="مثال: محل الحوت"></div>
+                <div class="form-group"><label>رقم الهاتف</label><input type="tel" id="client-phone" placeholder="06XXXXXXXX"></div>
+                
+                <div class="form-group">
+                    <label>📍 انقر على الخريطة لتحديد الموقع أو استخدم الـ GPS:</label>
+                    <div id="client-map" class="map-box"></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <input type="text" id="lat" placeholder="خط العرض" readonly style="font-size:0.8rem;">
+                    <input type="text" id="lng" placeholder="خط الطول" readonly style="font-size:0.8rem;">
+                </div>
+
+                <button class="btn btn-secondary" onclick="fillCurrentLocation()"><i class="fa-solid fa-crosshairs"></i> موقعي الحالي (GPS)</button>
+                <button class="btn btn-success" onclick="saveClient()"><i class="fa-solid fa-floppy-disk"></i> حفظ الزبون</button>
+            </div>
+        </div>
+
+        <!-- TAB 3: المخزون -->
+        <div id="tab-inventory" class="tab-content">
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-box-open"></i><h3 style="margin:0; font-size:1rem;">إضافة منتج جديد</h3></div>
+                <div class="form-group"><label>اسم المنتج</label><input type="text" id="prod-name"></div>
+                <div class="form-group"><label>السعر</label><input type="number" id="prod-price"></div>
+                <div class="form-group"><label>الكمية</label><input type="number" id="prod-stock"></div>
+                <button class="btn btn-success" onclick="saveProduct()"><i class="fa-solid fa-plus"></i> حفظ المنتج</button>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-warehouse"></i><h3 style="margin:0; font-size:1rem;">محتوى المخزون والكميات المتبقية</h3></div>
+                <div id="inventory-stock-list"></div>
+            </div>
+
+            <div class="card" style="text-align: center;">
+                <h3 style="font-size: 0.95rem; margin-bottom: 8px;">قاعدة البيانات والنسخ الاحتياطي</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">قم بتحميل نسخة احتياطية لبياناتك وزبائنك لحمايتها من الضياع.</p>
+                <button class="btn btn-secondary" onclick="exportBackup()"><i class="fa-solid fa-download"></i> تصدير نسخة احتياطية</button><label class="btn btn-secondary" style="display:block; cursor:pointer; margin-top:8px;"><i class="fa-solid fa-upload"></i> استعادة نسخة<input type="file" id="backup-file" accept="application/json,.json" onchange="importBackup(event)" style="display:none"></label>
+            </div>
+        </div>
     </div>
 
-    <!-- قسم النسخ الاحتياطي -->
-    <div class="card">
-      <h3 style="margin-top:0; font-size:16px;">قاعدة البيانات والنسخ الاحتياطي</h3>
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        <button class="btn btn-secondary" onclick="exportBackup()">
-          📥 تصدير نسخة احتياطية
-        </button>
-        <button class="btn btn-secondary" onclick="triggerRestore()">
-          📤 استعادة نسخة
-        </button>
-      </div>
+    <!-- نافذة تنبيه مخصصة -->
+    <div id="custom-alert-modal">
+        <div class="custom-modal-content">
+            <div style="font-size: 2.2rem; color: var(--primary); margin-bottom: 10px;">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <p id="custom-alert-msg" style="font-size: 0.95rem; font-weight: 700; margin: 0 0 16px 0; color: var(--text-main); line-height: 1.5;"></p>
+            <button class="btn btn-primary" style="margin: 0;" onclick="closeCustomAlert()">حسناً</button>
+        </div>
     </div>
-  </div>
 
-  <!-- مدخل الملف المخفي لاستعادة النسخة -->
-  <input type="file" id="restoreFileInput" style="display: none;" onchange="processRestoreFile(event)">
-
-  <!-- شريط الإشعارات المخصص (Toast) -->
-  <div id="customToast" class="custom-toast">
-    <span id="toastText"></span>
-  </div>
-
-  <!-- النافذة المنبثقة المخصصة للاستعادة (تغني عن confirm وبدون رابط المتصفح) -->
-  <div id="restoreModal" class="modal-overlay">
-    <div class="modal-card">
-      <p>سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متابعة؟</p>
-      <div class="modal-actions">
-        <button class="btn btn-ok" onclick="confirmRestoreProcess()">حسناً</button>
-        <button class="btn btn-cancel" onclick="closeRestoreModal()">إلغاء</button>
-      </div>
+    <!-- نافذة تأكيد مخصصة لتنفيذ استعادة النسخة وبقية التنبيهات -->
+    <div id="custom-confirm-modal">
+        <div class="custom-modal-content">
+            <div style="font-size: 2.2rem; color: #f59e0b; margin-bottom: 10px;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <p id="custom-confirm-msg" style="font-size: 0.95rem; font-weight: 700; margin: 0 0 16px 0; color: var(--text-main); line-height: 1.5;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary" style="margin: 0; flex: 1;" id="custom-confirm-yes-btn">حسناً</button>
+                <button class="btn btn-secondary" style="margin: 0; flex: 1;" id="custom-confirm-no-btn">إلغاء</button>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <script>
-    // 1. نظام الإشعارات السريعة بدلاً من alert
-    function showToast(message) {
-      const toast = document.getElementById('customToast');
-      const toastText = document.getElementById('toastText');
-      
-      toastText.innerText = message;
-      toast.classList.add('show');
+    <!-- نافذة منبثقة لعرض سجل الزبون -->
+    <div id="client-history-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:2000; padding:20px; overflow-y:auto;">
+        <div style="background:var(--surface); color:var(--text-main); max-width:500px; margin:40px auto; border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px;">
+                <h3 style="margin:0; font-size:1.05rem;"><i class="fa-solid fa-address-book"></i> سجل معاملات الزبون</h3>
+                <button class="btn btn-danger" style="width:auto; padding:4px 10px; margin:0; font-size:0.75rem;" onclick="closeClientHistory()"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+            </div>
+            <div id="client-history-content">جاري التحميل...</div>
+        </div>
+    </div>
 
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 3000);
+    <!-- نافذة منبثقة لتعديل معلومات الزبون -->
+    <div id="edit-client-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:2000; padding:20px; overflow-y:auto;">
+        <div style="background:var(--surface); color:var(--text-main); max-width:500px; margin:40px auto; border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px;">
+                <h3 style="margin:0; font-size:1.05rem;"><i class="fa-solid fa-pen-to-square"></i> تعديل معلومات الزبون</h3>
+                <button class="btn btn-danger" style="width:auto; padding:4px 10px; margin:0; font-size:0.75rem;" onclick="closeEditClientModal()"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+            </div>
+            <input type="hidden" id="edit-client-id">
+            <div class="form-group"><label>اسم الزبون / المحل</label><input type="text" id="edit-client-name"></div>
+            <div class="form-group"><label>رقم الهاتف</label><input type="tel" id="edit-client-phone"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <input type="text" id="edit-lat" placeholder="خط العرض" readonly style="font-size:0.8rem;">
+                <input type="text" id="edit-lng" placeholder="خط الطول" readonly style="font-size:0.8rem;">
+            </div>
+            <button class="btn btn-success" onclick="updateClient()"><i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات</button>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة لتعديل المنتج -->
+    <div id="edit-product-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:2000; padding:20px; overflow-y:auto;">
+        <div style="background:var(--surface); color:var(--text-main); max-width:500px; margin:40px auto; border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); border:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:10px; margin-bottom:14px;">
+                <h3 style="margin:0; font-size:1.05rem;"><i class="fa-solid fa-pen-to-square"></i> تعديل المنتج</h3>
+                <button class="btn btn-danger" style="width:auto; padding:4px 10px; margin:0; font-size:0.75rem;" onclick="closeEditProductModal()"><i class="fa-solid fa-xmark"></i> إغلاق</button>
+            </div>
+            <input type="hidden" id="edit-prod-id">
+            <div class="form-group"><label>اسم المنتج</label><input type="text" id="edit-prod-name"></div>
+            <div class="form-group"><label>السعر (د.ج)</label><input type="number" id="edit-prod-price"></div>
+            <div class="form-group"><label>الكمية المتاحة</label><input type="number" id="edit-prod-stock"></div>
+            <button class="btn btn-success" onclick="saveProductUpdate()"><i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات</button>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('tab-route', this)"><i class="fa-solid fa-route"></i><span>المسار</span></button>
+        <button class="nav-item" onclick="switchTab('tab-clients', this)"><i class="fa-solid fa-users"></i><span>الزبائن</span></button>
+        <button class="nav-item" onclick="switchTab('tab-inventory', this)"><i class="fa-solid fa-boxes-stacked"></i><span>المخزون</span></button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// نافذة تنبيه مخصصة
+let customAlertCallback = null;
+function showAlert(msg, callback) {
+    customAlertCallback = callback || null;
+    const msgEl = document.getElementById('custom-alert-msg');
+    if (msgEl) msgEl.innerText = msg;
+    const modal = document.getElementById('custom-alert-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeCustomAlert() {
+    const modal = document.getElementById('custom-alert-modal');
+    if (modal) modal.style.display = 'none';
+    if (typeof customAlertCallback === 'function') {
+        const cb = customAlertCallback;
+        customAlertCallback = null;
+        cb();
     }
+}
 
-    // 2. زر تأكيد البيع وإظهار الإشعار المطلوب
-    function handleSaleConfirm() {
-      // الكود البرمجي لحفظ الطلبية...
-      
-      // إظهار رسالة النجاح بدون تنبيه المتصفح
-      showToast("تم تسجيل الطلبية بنجاح");
-    }
+// نافذة تأكيد مخصصة لمنع ظهور رابط الموقع
+function showConfirm(msg, onConfirm, onCancel) {
+    const msgEl = document.getElementById('custom-confirm-msg');
+    if (msgEl) msgEl.innerText = msg;
+    const modal = document.getElementById('custom-confirm-modal');
+    if (modal) modal.style.display = 'flex';
 
-    // 3. تحديد الموقع الجغرافي المعالج وبدون تنبيهات المتصفح
-    function getGeoLocation() {
-      if (!navigator.geolocation) {
-        showToast("متصفحك لا يدعم تحديد الموقع الجغرافي");
+    const yesBtn = document.getElementById('custom-confirm-yes-btn');
+    const noBtn = document.getElementById('custom-confirm-no-btn');
+
+    yesBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (typeof onConfirm === 'function') onConfirm();
+    };
+    noBtn.onclick = function() {
+        modal.style.display = 'none';
+        if (typeof onCancel === 'function') onCancel();
+    };
+}
+
+window.alert = function(msg) {
+    showAlert(msg);
+};
+
+const DB_KEY = 'sales_app_db_v1';
+const defaultDB = {clients:[], products:[], orders:[], orderItems:[], settings:{last_reset_date:null}, nextIds:{clients:1,products:1,orders:1,orderItems:1}};
+let db = loadDB();
+function loadDB(){ try { const raw=localStorage.getItem(DB_KEY); if(!raw) return structuredClone(defaultDB); const d=JSON.parse(raw); return {...structuredClone(defaultDB),...d,nextIds:{...defaultDB.nextIds,...(d.nextIds||{})},settings:{...defaultDB.settings,...(d.settings||{})}}; } catch(e){ return structuredClone(defaultDB); } }
+function saveDB(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
+function nextId(kind){ const id=db.nextIds[kind]||1; db.nextIds[kind]=id+1; return id; }
+function today(){ return new Date().toISOString().slice(0,10); }
+function checkAndResetDailyVisits(){ const t=today(); if(db.settings.last_reset_date!==t){ db.clients.forEach(c=>c.visited=0); db.settings.last_reset_date=t; saveDB(); } }
+checkAndResetDailyVisits();
+
+function initTheme(){ const savedTheme=localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); applyTheme(savedTheme); }
+function applyTheme(theme){ document.documentElement.setAttribute('data-theme',theme); localStorage.setItem('theme',theme); const icon=document.getElementById('theme-icon'); if(icon) icon.className=theme==='dark'?'fa-solid fa-sun':'fa-solid fa-moon'; }
+function toggleTheme(){ applyTheme((document.documentElement.getAttribute('data-theme')||'light')==='dark'?'light':'dark'); }
+initTheme();
+
+let clientMap=L.map('client-map').setView([34.8781,-1.3174],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(clientMap);
+let currentLat=null,currentLng=null,selectedMarker=null;
+let allClients=[],availableProducts=[],currentCart=[]; let showOnlyUnvisited=false;
+function switchTab(tabId,element){document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));document.getElementById(tabId).classList.add('active');if(element)element.classList.add('active');if(tabId==='tab-clients')setTimeout(()=>clientMap.invalidateSize(),200);}
+clientMap.on('click',e=>{const lat=e.latlng.lat.toFixed(6),lng=e.latlng.lng.toFixed(6);document.getElementById('lat').value=lat;document.getElementById('lng').value=lng;if(selectedMarker)selectedMarker.setLatLng(e.latlng);else selectedMarker=L.marker(e.latlng).addTo(clientMap);});
+
+function initGPS(callback){
+    if(!navigator.geolocation){
+        showAlert('ميزة GPS غير متاحة على هذا الجهاز');
         return;
-      }
-
-      showToast("جاري تحديد الموقع الجغرافي...");
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          
-          console.log("إحداثيات الموقع:", lat, lng);
-          showToast("تم تحديد الموقع بنجاح");
-        },
-        (error) => {
-          switch(error.code) {
-            case error.PERMISSION_DENIED:
-              showToast("تم رفض إذن الوصول للموقع الجغرافي");
-              break;
-            case error.POSITION_UNAVAILABLE:
-              showToast("تعذر الحصول على معلومات الموقع");
-              break;
-            case error.TIMEOUT:
-              showToast("انتهت مهلة استجابة تحديد الموقع");
-              break;
-            default:
-              showToast("حدث خطأ أثناء تحديد الموقع");
-          }
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
     }
+    navigator.geolocation.getCurrentPosition(p=>{
+        currentLat=p.coords.latitude;
+        currentLng=p.coords.longitude;
+        clientMap.setView([currentLat,currentLng],14);
+        sortClientsByDistance();
+        filterClientsList();
+        if(typeof callback === 'function') callback(currentLat, currentLng);
+    }, err=>{
+        let msg = 'تعذر تحديد الموقع الجغرافي، يرجى تفعيل الـ GPS والسماح بالوصول للموقع';
+        if(err.code === 1) msg = 'تم رفض إذن الوصول للموقع (GPS)';
+        else if(err.code === 2) msg = 'الموقع غير متاح حالياً، تحقق من تفعيل الـ GPS';
+        else if(err.code === 3) msg = 'انتهت مهلة تحديد الموقع';
+        showAlert(msg);
+    },{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
+}
 
-    // 4. التحكم بنوافذ استعادة النسخة الاحتياطية
-    function triggerRestore() {
-      document.getElementById('restoreModal').classList.add('active');
+function fillCurrentLocation(){
+    if(currentLat!=null && currentLng!=null){
+        document.getElementById('lat').value=currentLat.toFixed(6);
+        document.getElementById('lng').value=currentLng.toFixed(6);
+        clientMap.setView([currentLat,currentLng],15);
+        if(selectedMarker) selectedMarker.setLatLng([currentLat,currentLng]);
+        else selectedMarker=L.marker([currentLat,currentLng]).addTo(clientMap);
+        showAlert('تم تحديد موقعك الحالي بنجاح ✓');
+    } else {
+        initGPS((lat, lng)=>{
+            document.getElementById('lat').value=lat.toFixed(6);
+            document.getElementById('lng').value=lng.toFixed(6);
+            clientMap.setView([lat,lng],15);
+            if(selectedMarker) selectedMarker.setLatLng([lat,lng]);
+            else selectedMarker=L.marker([lat,lng]).addTo(clientMap);
+            showAlert('تم تحديد موقعك الحالي بنجاح ✓');
+        });
     }
+}
 
-    function closeRestoreModal() {
-      document.getElementById('restoreModal').classList.remove('active');
+function loadData(){checkAndResetDailyVisits();allClients=clone(db.clients);availableProducts=clone(db.products);sortClientsByDistance();filterClientsList();renderInventoryStock();const totalSales=db.orders.filter(o=>o.date.slice(0,10)===today()).reduce((s,o)=>s+Number(o.total_amount||0),0);const totalDebt=db.clients.reduce((s,c)=>s+Number(c.debt||0),0);const totalClients=db.clients.length;const visited=db.clients.filter(c=>c.visited===1).length;document.getElementById('total-sales').innerText=totalSales+' د.ج';document.getElementById('total-debt').innerText=totalDebt+' د.ج';document.getElementById('succ-rate').innerText=(totalClients?Math.floor(visited/totalClients*100):0)+'%';}
+function sortClientsByDistance(){if(currentLat==null||currentLng==null)return;allClients.forEach(c=>{const R=6371,dLat=(Number(c.lat)-currentLat)*Math.PI/180,dLng=(Number(c.lng)-currentLng)*Math.PI/180,a=Math.sin(dLat/2)**2+Math.cos(currentLat*Math.PI/180)*Math.cos(Number(c.lat)*Math.PI/180)*Math.sin(dLng/2)**2;c.distance=2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));});allClients.sort((a,b)=>(a.distance||9999)-(b.distance||9999));}
+function renderClientsList(arr){const container=document.getElementById('sorted-clients-list');let html='';arr.forEach(c=>{const dist=c.distance!==undefined?`<small style="color:var(--primary);font-weight:bold;">📍 المسافة: ${c.distance.toFixed(1)} كم</small><br>`:'';const call=c.phone?`<a href="tel:${c.phone}" class="btn-call"><i class="fa-solid fa-phone"></i> اتصال</a>`:'';const nav=`<a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" class="btn-map-nav"><i class="fa-solid fa-map-location-dot"></i> الخريطة</a>`;const vc=c.visited==1?'visited':'';const vb=c.visited==1?'<span class="visited-badge">تمت الزيارة ✓</span>':'';html+=`<div class="client-route-card ${vc}"><div><strong>${escapeHtml(c.name)}</strong> ${vb}<br><div style="display:flex;gap:6px;margin:4px 0;">${call} ${nav}</div>${dist}<small style="color:var(--danger);">🔴 الدين: ${Number(c.debt||0)} د.ج</small></div><div style="display:flex;gap:4px;flex-direction:column;"><button class="btn btn-primary" style="width:auto;padding:6px 10px;margin:0;font-size:0.75rem;background:#6366f1;" onclick="openClientHistory(${c.id})"><i class="fa-solid fa-clock-rotate-left"></i> سجل</button><button class="btn btn-primary" style="width:auto;padding:6px 10px;margin:0;font-size:0.75rem;" onclick="openClientOrder(${c.id})"><i class="fa-solid fa-basket-shopping"></i> طلبية</button><button class="btn btn-secondary" style="width:auto;padding:6px 10px;margin:0;font-size:0.75rem;" onclick="openEditClient(${c.id})"><i class="fa-solid fa-pen-to-square"></i> تعديل</button></div></div>`;});container.innerHTML=html||'<p style="text-align:center;color:var(--text-muted)">لا يوجد زبائن مطابقين لشروط البحث</p>';}
+function escapeHtml(v){return String(v??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]));}
+function toggleUnvisitedFilter(){showOnlyUnvisited=!showOnlyUnvisited;const b=document.getElementById('filter-unvisited-btn');b.style.background=showOnlyUnvisited?'var(--primary)':'var(--input-bg)';b.style.color=showOnlyUnvisited?'#fff':'var(--text-main)';filterClientsList();}
+function filterClientsList(){const q=(document.getElementById('search-input').value||'').toLowerCase();renderClientsList(allClients.filter(c=>(c.name.toLowerCase().includes(q)||(c.phone&&c.phone.includes(q)))&&(!showOnlyUnvisited||c.visited==0)));}
+function renderInventoryStock(){const container=document.getElementById('inventory-stock-list');let html='<table class="cart-table"><thead><tr><th>المنتج</th><th>السعر</th><th>المتبقي</th><th>إجراءات</th></tr></thead><tbody>';availableProducts.forEach(p=>{const sc=p.stock<=3?'color:var(--danger);font-weight:bold;':'';html+=`<tr><td><strong>${escapeHtml(p.name)}</strong></td><td>${p.price} د.ج</td><td style="${sc}">${p.stock}</td><td><div style="display:flex;gap:4px;justify-content:flex-end;"><button class="btn btn-success" style="width:auto;padding:3px 7px;margin:0;font-size:0.75rem;" onclick="restockProduct(${p.id},${p.stock})"><i class="fa-solid fa-plus"></i></button><button class="btn btn-secondary" style="width:auto;padding:3px 7px;margin:0;font-size:0.75rem;" onclick="openEditProduct(${p.id})"><i class="fa-solid fa-pen"></i></button><button class="btn btn-danger" style="width:auto;padding:3px 7px;margin:0;font-size:0.75rem;" onclick="deleteProduct(${p.id})"><i class="fa-solid fa-trash"></i></button></div></td></tr>`;});html+='</tbody></table>';container.innerHTML=html;}
+function restockProduct(id,current){const n=parseInt(prompt('أدخل الكمية الجديدة المضافة للمخزون:'));if(!n||n<=0)return showAlert('يرجى إدخال رقم كمية صالح');const p=db.products.find(x=>x.id===id);if(!p)return;p.stock=current+n;saveDB();showAlert(`تمت إضافة ${n} قطعة إلى المخزون بنجاح`);loadData();}
+function openEditProduct(id){const p=db.products.find(x=>x.id===id);if(!p)return;document.getElementById('edit-prod-id').value=p.id;document.getElementById('edit-prod-name').value=p.name;document.getElementById('edit-prod-price').value=p.price;document.getElementById('edit-prod-stock').value=p.stock;document.getElementById('edit-product-modal').style.display='block';}
+function closeEditProductModal(){document.getElementById('edit-product-modal').style.display='none';}
+function saveProductUpdate(){const id=Number(document.getElementById('edit-prod-id').value),name=document.getElementById('edit-prod-name').value.trim(),price=parseFloat(document.getElementById('edit-prod-price').value),stock=parseInt(document.getElementById('edit-prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return showAlert('يرجى إدخال كافة البيانات بشكل صحيح');const p=db.products.find(x=>x.id===id);if(!p)return;p.name=name;p.price=price;p.stock=stock;saveDB();showAlert('تم تعديل المنتج بنجاح');closeEditProductModal();loadData();}
+function deleteProduct(id){showConfirm('هل أنت متأكد من حذف هذا المنتج نهائياً من المخزن؟', ()=>{db.products=db.products.filter(p=>p.id!==id);saveDB();showAlert('تم حذف المنتج بنجاح');loadData();});}
+
+function openClientOrder(id){
+    const client=allClients.find(c=>c.id===id);
+    if(!client)return;
+    currentCart=[];
+    const opts=availableProducts.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${p.price} د.ج) - متبقي: ${p.stock}</option>`).join('');
+    document.getElementById('selected-client-info').innerHTML=`<div class="info-box"><strong>${escapeHtml(client.name)}</strong><div style="display:flex;gap:6px;margin:6px 0;">${client.phone?`<a href="tel:${client.phone}" class="btn-call"><i class="fa-solid fa-phone"></i> ${client.phone}</a>`:''}<a href="https://www.google.com/maps/dir/?api=1&destination=${client.lat},${client.lng}" target="_blank" class="btn-map-nav"><i class="fa-solid fa-map-location-dot"></i> فتح بخرائط جوجل</a></div><span style="color:var(--danger);font-weight:bold;">🔴 الدين الحالي: ${client.debt} د.ج</span></div><select id="select-prod">${opts}</select><input type="number" id="select-qty" value="1" style="margin-top:6px;"><button class="btn btn-secondary" onclick="addToCart()"><i class="fa-solid fa-cart-plus"></i> إضافة للسلة</button><div id="cart-display"></div><input type="number" id="paid-amt" placeholder="المبلغ المدفوع كاش" style="margin-top:10px;"><button class="btn btn-success" onclick="submitOrder(${client.id})">تأكيد البيع</button><div id="whatsapp-btn-container"></div><div style="border-top:1px dashed var(--border);margin-top:12px;padding-top:10px;"><input type="number" id="pay-amt" placeholder="المبلغ المسدد من الدين القديم"><button class="btn btn-success" onclick="submitPayment(${client.id})">تسديد الدين</button></div>`;
+    document.getElementById('selected-client-order-section').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function closeClientOrder(){document.getElementById('selected-client-order-section').style.display='none';currentCart=[];}
+function openClientHistory(id){document.getElementById('client-history-modal').style.display='block';const client=db.clients.find(c=>c.id===id);if(!client)return;const orders=db.orders.filter(o=>o.client_id===id).sort((a,b)=>b.date.localeCompare(a.date));let rows=[];orders.forEach(o=>{db.orderItems.filter(i=>i.order_id===o.id).forEach(i=>rows.push({...o,...i}));});let html=`<div class="info-box"><strong>الاسم: ${escapeHtml(client.name)}</strong><br><small>الهاتف: ${escapeHtml(client.phone||'غير متوفر')}</small><br><span style="color:var(--danger);font-weight:bold;">إجمالي الدين الحالي: ${client.debt} د.ج</span></div><h4 style="font-size:0.9rem;margin-bottom:8px;">تفاصيل المشتريات والطلبيات السابقة:</h4>`;if(!rows.length)html+='<p style="text-align:center;color:var(--text-muted);">لا توجد طلبيات مسجلة لهذا الزبون حتى الآن.</p>';else{html+='<table class="cart-table"><thead><tr><th>التاريخ</th><th>السلعة</th><th>الكمية</th><th>المبلغ المدفوع</th><th>الدين</th></tr></thead><tbody>';rows.forEach(o=>html+=`<tr><td><small>${o.date.substring(0,10)}</small></td><td>${escapeHtml(o.name||'')}</td><td>${o.quantity}</td><td>${o.paid_amount} د.ج</td><td style="color:var(--danger);">${o.debt_amount} د.ج</td></tr>`);html+='</tbody></table>';}document.getElementById('client-history-content').innerHTML=html;}
+function closeClientHistory(){document.getElementById('client-history-modal').style.display='none';}
+function openEditClient(id){const c=allClients.find(x=>x.id===id);if(!c)return;document.getElementById('edit-client-id').value=c.id;document.getElementById('edit-client-name').value=c.name;document.getElementById('edit-client-phone').value=c.phone||'';document.getElementById('edit-lat').value=c.lat||'';document.getElementById('edit-lng').value=c.lng||'';document.getElementById('edit-client-modal').style.display='block';}
+function closeEditClientModal(){document.getElementById('edit-client-modal').style.display='none';}
+function updateClient(){const id=Number(document.getElementById('edit-client-id').value),name=document.getElementById('edit-client-name').value.trim(),phone=document.getElementById('edit-client-phone').value.trim(),lat=parseFloat(document.getElementById('edit-lat').value),lng=parseFloat(document.getElementById('edit-lng').value);if(!name||isNaN(lat)||isNaN(lng))return showAlert('يرجى إدخال بيانات صحيحة');const c=db.clients.find(x=>x.id===id);if(!c)return;c.name=name;c.phone=phone;c.lat=lat;c.lng=lng;saveDB();showAlert('تم تعديل معلومات الزبون بنجاح');closeEditClientModal();loadData();}
+function addToCart(){const pid=parseInt(document.getElementById('select-prod').value),qty=parseInt(document.getElementById('select-qty').value)||1,p=availableProducts.find(x=>x.id===pid);if(!p)return;if(qty>p.stock)return showAlert(`عذراً، الكمية المطلوبة (${qty}) أكبر من المخزون المتبقي (${p.stock}) لهذا المنتج!`);const e=currentCart.find(x=>x.product_id===pid);if(e){if(e.quantity+qty>p.stock)return showAlert(`عذراً، إجمالي الكمية في السلة يتجاوز المتبقي في المخزون (${p.stock})!`);e.quantity+=qty;}else currentCart.push({product_id:pid,name:p.name,quantity:qty,price:p.price});renderCart();}
+function removeFromCart(i){currentCart.splice(i,1);renderCart();}
+function renderCart(){let html='<table class="cart-table"><thead><tr><th>المنتج</th><th>الكمية</th><th>المجموع</th><th>حذف</th></tr></thead><tbody>',total=0;currentCart.forEach((it,i)=>{total+=it.quantity*it.price;html+=`<tr><td>${escapeHtml(it.name)}</td><td>${it.quantity}</td><td>${it.quantity*it.price} د.ج</td><td><button class="btn btn-danger" style="width:auto;padding:2px 6px;margin:0;font-size:0.7rem;" onclick="removeFromCart(${i})"><i class="fa-solid fa-trash"></i></button></td></tr>`});html+=`</tbody></table><p style="font-weight:bold;margin-top:6px;">المجموع الكلي: ${total} د.ج</p>`;document.getElementById('cart-display').innerHTML=html;}
+
+function submitOrder(cid){
+    const paid=parseFloat(document.getElementById('paid-amt').value)||0;
+    if(currentCart.length===0)return showAlert('يرجى إضافة منتجات للسلة أولاً');
+    if(paid<0)return showAlert('المبلغ المدفوع لا يمكن أن يكون سالباً');
+    const client=db.clients.find(c=>c.id===cid);
+    if(!client)return;
+    for(const it of currentCart){
+        const p=db.products.find(x=>x.id===it.product_id);
+        if(!p||p.stock<it.quantity)return showAlert(`المخزون غير كافٍ للمنتج: ${it.name}`);
     }
+    const total=currentCart.reduce((s,i)=>s+i.quantity*i.price,0),debt=total-paid;
+    if(debt<0)return showAlert('المبلغ المدفوع أكبر من إجمالي الطلبية');
+    const orderId=nextId('orders');
+    db.orders.push({id:orderId,client_id:cid,total_amount:total,paid_amount:paid,debt_amount:debt,date:new Date().toISOString()});
+    currentCart.forEach(it=>{
+        const p=db.products.find(x=>x.id===it.product_id);
+        p.stock-=it.quantity;
+        db.orderItems.push({id:nextId('orderItems'),order_id:orderId,product_id:it.product_id,name:it.name,quantity:it.quantity,price:it.price});
+    });
+    client.debt=Number(client.debt||0)+debt;
+    client.visited=1;
+    saveDB();
 
-    function confirmRestoreProcess() {
-      closeRestoreModal();
-      // فتح خيار اختيار الملف بعد موافقة المستخدم
-      document.getElementById('restoreFileInput').click();
-    }
+    let msg=`مرحباً بك ${client.name}، تفاصيل طلبيتك:\n`;
+    currentCart.forEach(i=>msg+=`- ${i.name} (${i.quantity}) : ${i.quantity*i.price} د.ج\n`);
+    msg+=`المجموع الكلي: ${total} د.ج\nالمبلغ المدفوع: ${paid} د.ج\nالباقي (دين): ${debt} د.ج`;
 
-    function processRestoreFile(event) {
-      const file = event.target.files[0];
-      if (file) {
-        // كود معالجة واستعادة الملف...
-        showToast("تم استعادة النسخة الاحتياطية بنجاح");
-      }
-    }
+    showAlert('تم تسجيل الطلبية بنجاح', () => {
+        if(client.phone){
+            const clean=client.phone.startsWith('0')?'213'+client.phone.slice(1):client.phone;
+            window.location.href=`https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+        }
+        closeClientOrder();
+        loadData();
+    });
+}
 
-    function exportBackup() {
-      // كود تصدير النسخة...
-      showToast("تم تصدير النسخة الاحتياطية بنجاح");
-    }
-  </script>
+function submitPayment(cid){const pay=parseFloat(document.getElementById('pay-amt').value)||0;if(pay<=0)return showAlert('يرجى إدخال مبلغ صحيح');const c=db.clients.find(x=>x.id===cid);if(!c)return;c.debt=Number(c.debt||0)-pay;saveDB();showAlert('تم تسديد الدين بنجاح');closeClientOrder();loadData();}
+function saveClient(){const name=document.getElementById('client-name').value.trim(),phone=document.getElementById('client-phone').value.trim(),lat=parseFloat(document.getElementById('lat').value),lng=parseFloat(document.getElementById('lng').value);if(!name||isNaN(lat)||isNaN(lng))return showAlert('يرجى إدخال اسم الزبون وتحديد موقعه على الخريطة');db.clients.push({id:nextId('clients'),name,phone,lat,lng,debt:0,visited:0});saveDB();showAlert('تم حفظ الزبون بنجاح');['client-name','client-phone','lat','lng'].forEach(id=>document.getElementById(id).value='');if(selectedMarker){clientMap.removeLayer(selectedMarker);selectedMarker=null;}loadData();switchTab('tab-route',document.querySelectorAll('.nav-item')[0]);}
+function saveProduct(){const name=document.getElementById('prod-name').value.trim(),price=parseFloat(document.getElementById('prod-price').value),stock=parseInt(document.getElementById('prod-stock').value);if(!name||isNaN(price)||isNaN(stock)||price<0||stock<0)return showAlert('يرجى ملء جميع حقول المنتج بشكل صحيح');db.products.push({id:nextId('products'),name,price,stock});saveDB();showAlert('تم حفظ المنتج بنجاح');['prod-name','prod-price','prod-stock'].forEach(id=>document.getElementById(id).value='');loadData();}
+function resetDailyVisits(){showConfirm('هل تريد تصفير الزيارات اليومية؟', ()=>{db.clients.forEach(c=>c.visited=0);db.settings.last_reset_date=today();saveDB();loadData();showAlert('تمت إعادة ضبط الزيارات اليومية بنجاح');});}
+function exportBackup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='sales_backup_'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 
+function importBackup(event){
+    const file=event.target.files[0];
+    if(!file)return;
+    const r=new FileReader();
+    r.onload=()=>{
+        try{
+            const d=JSON.parse(r.result);
+            if(!d.clients||!d.products||!d.orders||!d.orderItems)throw new Error('ملف غير صالح');
+            
+            showConfirm('سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متابعة؟', () => {
+                db=d;
+                saveDB();
+                loadData();
+                showAlert('تمت استعادة النسخة الاحتياطية بنجاح');
+            });
+        }catch(e){
+            showAlert('تعذر استعادة النسخة: الملف غير صالح');
+        }
+    };
+    r.readAsText(file);
+    event.target.value = '';
+}
+
+window.addEventListener('load',()=>{loadData();initGPS();});
+</script>
 </body>
 </html>
